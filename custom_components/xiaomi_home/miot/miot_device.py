@@ -51,7 +51,10 @@ from typing import Any, Callable, Optional
 import logging
 
 from homeassistant.helpers.entity import Entity, DeviceInfo
-from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
+from homeassistant.helpers.device_registry import (
+    CONNECTION_NETWORK_MAC,
+    format_mac
+)
 from homeassistant.const import (
     CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
@@ -142,6 +145,11 @@ class MIoTDevice:
     _mac_address: str
     _fw_version: str
 
+    _ip_address: str
+    _ssid: str
+    _bssid: str
+    _rssi: int
+
     _icon: str
     _home_id: str
     _home_name: str
@@ -176,6 +184,11 @@ class MIoTDevice:
         self._manufacturer = device_info.get('manufacturer', None)
         self._mac_address = device_info.get('mac', None)
         self._fw_version = device_info.get('fw_version', None)
+
+        self._ip_address = device_info.get('local_ip', None)
+        self._ssid = device_info.get('ssid', None)
+        self._bssid = device_info.get('bssid', None)
+        self._rssi = device_info.get('rssi', None)
 
         self._icon = device_info.get('icon', None)
         self._home_id = device_info.get('home_id', None)
@@ -321,7 +334,7 @@ class MIoTDevice:
     def device_info(self) -> DeviceInfo:
         """information about this entity/device."""
         base_info = {
-            'identifiers': {(DOMAIN, self.did_tag)},
+            'identifiers': {self.identifier},
             'name': self._name,
             'sw_version': self._fw_version,
             'model': self._model,
@@ -334,9 +347,23 @@ class MIoTDevice:
         }
         if self._mac_address:
             base_info['connections'] = {
-                (CONNECTION_NETWORK_MAC, self._mac_address)
+                (CONNECTION_NETWORK_MAC, format_mac(self._mac_address))
             }
         return DeviceInfo(**base_info)
+
+    @property
+    def diagnostic_info(self) -> dict[str, Any]:
+        """Diagnostic information of this entity/device."""
+        diag_info = {}
+        if self._ip_address:
+            diag_info['ip'] = self._ip_address
+        if self._ssid:
+            diag_info['ssid'] = self._ssid
+        if self._bssid:
+            diag_info['bssid'] = self._bssid
+        if self._rssi:
+            diag_info['rssi'] = self._rssi
+        return diag_info
 
     @property
     def did(self) -> str:
@@ -347,6 +374,10 @@ class MIoTDevice:
     def did_tag(self) -> str:
         return slugify_did(
             cloud_server=self.miot_client.cloud_server, did=self._did)
+
+    @property
+    def identifier(self) -> tuple[str, str]:
+        return (DOMAIN, self.did_tag)
 
     def gen_device_entity_id(self, ha_domain: str) -> str:
         return (

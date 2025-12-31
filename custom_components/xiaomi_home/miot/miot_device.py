@@ -50,7 +50,8 @@ from abc import abstractmethod
 from typing import Any, Callable, Optional
 import logging
 
-from homeassistant.helpers.entity import Entity
+from homeassistant.helpers.entity import Entity, DeviceInfo
+from homeassistant.helpers.device_registry import CONNECTION_NETWORK_MAC
 from homeassistant.const import (
     CONCENTRATION_MICROGRAMS_PER_CUBIC_METER,
     CONCENTRATION_MILLIGRAMS_PER_CUBIC_METER,
@@ -75,7 +76,6 @@ from homeassistant.const import (
     UnitOfVolumeFlowRate,
     UnitOfDataRate
 )
-from homeassistant.helpers.entity import DeviceInfo
 from homeassistant.components.switch import SwitchDeviceClass
 
 
@@ -139,6 +139,7 @@ class MIoTDevice:
     _model: str
     _model_strs: list[str]
     _manufacturer: str
+    _mac_address: str
     _fw_version: str
 
     _icon: str
@@ -173,6 +174,7 @@ class MIoTDevice:
         self._model = device_info['model']
         self._model_strs = self._model.split('.')
         self._manufacturer = device_info.get('manufacturer', None)
+        self._mac_address = device_info.get('mac', None)
         self._fw_version = device_info.get('fw_version', None)
 
         self._icon = device_info.get('icon', None)
@@ -318,17 +320,23 @@ class MIoTDevice:
     @property
     def device_info(self) -> DeviceInfo:
         """information about this entity/device."""
-        return DeviceInfo(
-            identifiers={(DOMAIN, self.did_tag)},
-            name=self._name,
-            sw_version=self._fw_version,
-            model=self._model,
-            manufacturer=self._manufacturer,
-            suggested_area=self._suggested_area,
-            configuration_url=(
+        base_info = {
+            'identifiers': {(DOMAIN, self.did_tag)},
+            'name': self._name,
+            'sw_version': self._fw_version,
+            'model': self._model,
+            'manufacturer': self._manufacturer,
+            'suggested_area': self._suggested_area,
+            'configuration_url': (
                 f'https://home.mi.com/webapp/content/baike/product/index.html?'
-                f'model={self._model}')
-        )
+                f'model={self._model}'
+            )
+        }
+        if self._mac_address:
+            base_info['connections'] = {
+                (CONNECTION_NETWORK_MAC, self._mac_address)
+            }
+        return DeviceInfo(**base_info)
 
     @property
     def did(self) -> str:

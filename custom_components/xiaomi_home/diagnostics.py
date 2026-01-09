@@ -46,7 +46,7 @@ off Xiaomi or its affiliates' products.
 Select entities for Xiaomi Home.
 """
 from __future__ import annotations
-import logging
+from typing import Any
 
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.helpers.device_registry import DeviceEntry
@@ -55,7 +55,16 @@ from homeassistant.core import HomeAssistant
 from .miot.const import DOMAIN
 from .miot.miot_device import MIoTDevice
 
-_LOGGER = logging.getLogger(__name__)
+
+async def async_get_config_entry_diagnostics(
+        hass: HomeAssistant, config_entry: ConfigEntry) -> dict[str, Any]:
+    """Diagnostics for a config entry."""
+    device_list: list[MIoTDevice] = hass.data[DOMAIN]['devices'][
+        config_entry.entry_id]
+    data = {}
+    for miot_device in device_list:
+        data[miot_device.did] = miot_device.diagnostic_info
+    return data
 
 
 async def async_get_device_diagnostics(hass: HomeAssistant,
